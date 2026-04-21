@@ -5,13 +5,18 @@
 # Normal queries too
 
 import json
-# import llm_model_api_connection_library
+import os
+from dotenv import load_dotenv
+from google import genai
+
+# Load environment variables from .env file
+load_dotenv()
 
 # -----------------------------------------
 # Prompt Templats
 # -----------------------------------------
 
-# Query Expansion Prompt
+# Template for expanding user queries into technical search terms
 EXPANSION_PROMPT_TEMPLATE = """
 You are an Academic Research Assistant. Your goal is to improve retrieval precision.
 Original Query: {user_query}
@@ -24,6 +29,7 @@ Tasks:
 Ouput format: JSON list of strings.
 """
 
+# Template for synthesizing research gaps from multiple paper sections
 GAP_SYNTHESIS_PROMPT_TEMPLATE = """
 You are a Research Analyst. Below are "Limitations" and "Future Work" sections from multiple papers.
 Context: {context_data}
@@ -44,50 +50,78 @@ Output format: Structured bullet points.
 
 class ScholarGraphLogic:
     def __init__(self):
-        # This is where you would configure your API key
-        # self.client = ___(api_key="YOUR_KEY")
-        print("[System] ScholarGraph Logic Engine Initialized.")
-
-    def call_llm(self, mock_final_prompt):
         """
-        This is where the LLM call happens.
-        It takes the final engineered prompt and returns the AI's response.
+        Initialize the Logic Engine and configure the Gemini SDK.
         """
-        print("[System] Calling LLM API...")
-        # Mock API response
-        return "AI Response: Based on the provided sections, the research gap is..."
+        # Retrieve the API Key from the environment variable
+        api_key = os.getenv("GOOGLE_API_KEY")
+        
+        if not api_key:
+            print("[Error] GOOGLE_API_KEY not found. Please check your .env file.")
+            return
+        
+        # Initialize the client
+        self.client = genai.Client(api_key=api_key)
+        # We use 'gemini-flash-latest' for its high speed and large context window
+        self.model_id = "models/gemini-flash-latest"
 
+        print(f"[System] ScholarGraph Logic Engine Initialized with {self.model_id}.")
+
+    def call_llm(self, final_prompt):
+        """
+        Sends the engineered prompt to the Gemini API and returns the generated text.
+        """
+        print(f"[System] Calling Gemini API ({self.model_id})...")
+        try:
+            # Actual API call to Gemini
+            response = self.client.models.generate_content(
+                model = self.model_id,
+                contents = final_prompt
+            )
+            return response.text
+        except Exception as e:
+            return f"API Call Failed for {self.model_id}: {str(e)}"
 
     def expand_query_workflow(self, user_query):
-        """Step 1: Transform user query for Role B's Search Engine"""
+        """
+        Step 1: Transform a simple user query into multiple technical variations.
+        This improves the retrieval hit rate in the vector database.
+        """
         print(f"\n[Step 1] Executing Query Expansion for: '{user_query}'")
 
-        # In a real app, this calls the LLM with EXPANSION_PROMPT_TEMPLATE
-        mock_expanded_queries = [
-            f"Technical evaluation of {user_query} in distributed systems",
-            f"Performance bottlenecks and scalability of {user_query}",
-            f"Comparative analysis of {user_query} vs state-of-the-art"
-        ]
+        # Create the specific prompt for expansion
+        prompt = EXPANSION_PROMPT_TEMPLATE.format(user_query=user_query)
 
-        print(f" -> Generated Variations: {mock_expanded_queries}")
-        return mock_expanded_queries
+        # Call the LLM to get the technical variations
+        expanded_result = self.call_llm(prompt)
+
+        print(f" -> Generated Variations: \n{expanded_result}")
+        return expanded_result
     
     def gap_synthesis_workflow(self, paper_ids):
-        """Step 2: Orchestrate cross-paper analysis"""
+        """
+        Step 2: Orchestrate cross-paper analysis by synthesizing limitations.
+        It aggregates data from Lukas and processes it through the reasoning engine.
+        """
         print(f"\n[Step 2] Fetching data for Paper IDs: {paper_ids}")
 
-        # This is where I call Lukas's function
-        mock_data = Lukas.search_by_metadata(paper_ids, section="Limitations") # Lukas.get_limitations(paper_ids) # ex. ["Paper A: small sample size", "Paper B: High computational cost"]
-        # Aggregate text chuncks into a single context string
-        mock_raw_context = "\n".join(mock_data)
+        # Interface: Fetching mock data representing Lukas's retrieval result
+        # In the future, this will call Lukas's search function
+        mock_data = [
+            "Paper A: Small sample size and lack of diverse demographics.",
+            "Paper B: High computational cost and latency in real-time processing."
+        ]
 
-        # Inject the aggregated context into the prompt template
-        mock_final_prompt = GAP_SYNTHESIS_PROMPT_TEMPLATE.format(context_data=mock_raw_context)
+        # Refinement: Aggregate text chunks into a single string for the LLM
+        raw_context = "\n".join(mock_data)
 
-        # Send the finalized prompt to the LLM and receive the final answer
-        mock_final_answer = self.call_llm(mock_final_prompt)
+        # Injection: Combine the raw context with the Gap Synthesis prompt
+        final_prompt = GAP_SYNTHESIS_PROMPT_TEMPLATE.format(context_data = raw_context)
 
-        return mock_final_answer
+        # Execution: Get the final analytical response from the AI
+        final_answer = self.call_llm(final_prompt)
+
+        return final_answer
 
 
 

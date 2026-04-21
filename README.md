@@ -61,3 +61,25 @@ As the **Intelligence & Logic Lead**, I am responsible for the "Brain" of the sy
 #### 4. Python Orchestration Layer
 -
 - **Impact**
+
+## 🤖 Model Selection & Troubleshooting
+
+### Why Gemini Flash Latest?
+After evaluating several LLMs, I selected **'gemini-flash-latest'** as the primary engine for ScholarGraph for the following reasons:
+
+- **Large Context Window**
+
+    : Essential for processing dense academic papers and cross-referencing multiple "Limitations" sections.
+
+- **Inference Speed**
+
+    : Provides the near-instant response times required for interactive query expansion and ToC generation.
+
+- **Quota Efficiency**
+
+    : Offers the most stable rate limits within the free-tier, ensuring the RAP pipeline remains functional during heavy testing.
+
+### Troubleshooting Model Availability
+During the integration phase, I encountered persistent '404 Not Found' and '429 Resource Exhausted' errors with specific model versions (e.g., 1-5flash, 2.0-flash).
+
+To resolve this, I developed a diagnostic script, 'check_models.py', to programmatically list all models available to my specific API key. This allowed me to identify the exact model identifiers supported by the latest **google-genai** SDK, leading to the successful integration of the 'gemini-flash-latest' alias.
