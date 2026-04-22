@@ -83,3 +83,24 @@ After evaluating several LLMs, I selected **'gemini-flash-latest'** as the prima
 During the integration phase, I encountered persistent '404 Not Found' and '429 Resource Exhausted' errors with specific model versions (e.g., 1-5flash, 2.0-flash).
 
 To resolve this, I developed a diagnostic script, 'check_models.py', to programmatically list all models available to my specific API key. This allowed me to identify the exact model identifiers supported by the latest **google-genai** SDK, leading to the successful integration of the 'gemini-flash-latest' alias.
+
+## 🧩 Data Orchestration & Parsing
+### From Text to Structured Data
+To bridge the gap between the LLM's natural language output and the database's technical requirements, I implemented a robust **Data Parsing Layer**. This ensures that the intelligence logic provides structured inputs to the retrieval engine.
+
+### Key Technical Implementation
+- **Output Sanitization**
+
+    : Developed a cleaning logic to strip **Markdown Tags** (e.g., '```json") from the raw LLM responses, preventing parsing errors.
+
+- **JSON Deserialization**
+
+    : Leveraged Python's 'json' module to transform raw strings into functional **Python List** objects using 'json.loads()'.
+
+- **Validation & Fallback**
+
+    : Integrated error handling (try-except) to validate the data structure. If parsing fails, the system safely falls back to the original query to ensure continuous operation.
+
+- **Strict Prompting**
+
+    : Refined prompt templates to enforce **JSON-only** response, significantly improving the consistency of the data pipeline.

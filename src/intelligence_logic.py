@@ -26,7 +26,8 @@ Tasks:
 2. Generate 3 expanded search queries using professional academic terminology.
 3. Focus on methodology, results, and constraints.
 
-Ouput format: JSON list of strings.
+IMPORTANT: Output ONLY a valid JSON list of strings.
+Example: ["query 1", "query 2", "query 3"]
 """
 
 # Template for synthesizing research gaps from multiple paper sections
@@ -85,18 +86,37 @@ class ScholarGraphLogic:
     def expand_query_workflow(self, user_query):
         """
         Step 1: Transform a simple user query into multiple technical variations.
-        This improves the retrieval hit rate in the vector database.
+                This improves the retrieval hit rate in the vector database.
+              : Transform raw text into a machine-readable Python List.
         """
-        print(f"\n[Step 1] Executing Query Expansion for: '{user_query}'")
+        print(f"\n[Step 1] Executing Query Expansion & Parsing for: '{user_query}'")
 
         # Create the specific prompt for expansion
         prompt = EXPANSION_PROMPT_TEMPLATE.format(user_query=user_query)
 
         # Call the LLM to get the technical variations
-        expanded_result = self.call_llm(prompt)
+        raw_result = self.call_llm(prompt)
 
-        print(f" -> Generated Variations: \n{expanded_result}")
-        return expanded_result
+        # Sanitization & Parsing
+        try:
+            # 1. Sanitization: Remove potential markdown backticks
+            clean_json = raw_result.replace("```json", "").replace("```", "").strip()
+
+            # 2. Parsing: Convert String to real Python List
+            query_list = json.loads(clean_json)
+
+            if isinstance(query_list, list):
+                print(f" -> Successfully parsed {len(query_list)} queries.")
+                return query_list # Return <class 'list'>
+            else:
+                raise ValueError("Output is not a list format.")
+            
+        except Exception as e:
+            print(f"[Warning] Parsing failed: {e}")
+            # Fallback: Return original query in a list to prevent system crash
+            return [user_query]
+
+
     
     def gap_synthesis_workflow(self, paper_ids):
         """
