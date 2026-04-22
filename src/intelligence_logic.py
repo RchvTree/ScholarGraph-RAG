@@ -1,8 +1,10 @@
 # === Discussion ===
-# Which LLM?
-# Lukas's function -> 'limitations', 'future work' section
-# Need to work on 'future work' logic -> (consistencies, contradiction...)
+# Lukas's function -> 'title', 'year', 'limitations', 'future work'
+    # context_data -> Year(issued year), Citation Count => Metadata Enrichment
 # Normal queries too
+# Context Window? (If we have many papers / too long context /... Should we process all at once or have a summarization process in between?)
+# if __name__ == "__main__" => input()? save file as .txt or .md etc?
+# Hallucination prevention
 
 import json
 import os
@@ -34,10 +36,17 @@ Example: ["query 1", "query 2", "query 3"]
 # Template for synthesizing research gaps from multiple paper sections
 GAP_SYNTHESIS_PROMPT_TEMPLATE = """
 You are a Senior Research Strategist specialized in identifying "Research Silences" in academic literatue.
+Your goal is to provide a synthesis that is 100% grounded in the provided data.
 Below are retrieved sections (Limitations/Future Work) from multiple research papers.
 
 [Context Data]
 {context_data}
+
+[Strict Grounding Rules]
+1. No External Knowledge: Answer ONLY based on the provided [Context Data]. Do not use any information from your pre-training data or external sources.
+2. Missing Information: If a specific task cannot be fulfilled using only the provided context, explicitly state: "Information not available in the provided sources."
+3. Citation Enforcement: Every claim,  observation, or conclusion MUST be followed by a citation to its source paper (e.g., [Paper A], [Paper B]).
+4. Verbatim Fidelity: When quoting technical constraints or future work, stay as close to the original text as possible.
 
 [Your Analysis Tasks]
 1. Consistency & Addressal: Analyze if Paper B addresses any specific limitations mentioned in Paper A.
@@ -48,7 +57,7 @@ Below are retrieved sections (Limitations/Future Work) from multiple research pa
 [Output Guidelines]
 - Use professional academic English.
 - Use structured bullet points with bold headers.
-- Be specific and technical; avoid generic summaries.
+- NEVER provide a claim without a corresponding paper citation.
 """
 
 
@@ -127,7 +136,7 @@ class ScholarGraphLogic:
 
 
     
-    def gap_synthesis_workflow(self, context_data_list):
+    def gap_synthesis_workflow(self, retrieved_docs):
         """
         Step 3: Orchestrate cross-paper analysis by synthesizing research gaps.
 
@@ -135,28 +144,38 @@ class ScholarGraphLogic:
         The identifiers (Who to find) are handled by the Retrieval layer (Lukas),
         while this Reasoning layer focuses purely on the actual content (What to analyze).
 
-        It aggregates data from Lukas and processes it through the reasoning engine.
+        It processes a list of dictionaries containing 'title', 'year', and 'content'.
         """
 
         # Updated to Step 3 and changed to reflect the actual data being processed
-        print(f"\n[Step 3] Synthesizing Research Gaps from {len(context_data_list)} retrieved sections...")
+        print(f"\n[Step 3] Synthesizing Research Gaps from {len(retrieved_docs)} documents...")
 
-        # Aggregate text chunks for the LLM
-        raw_context = "\n".join(context_data_list)
+        # Metadata Handling Logic
+        formatted_context = []
+        for doc in retrieved_docs:
+            title = doc.get('title', 'Unknown Paper')
+            year = doc.get('year', 'N/A')
+            limitations = doc.get('limitations', 'No limitations provided.')
+            future_work = doc.get('future_work', 'No future work provided.')
+            # Creating a structured context for the LLM to facilitate citation
+            section_text = (
+                f"Source: [{title} ({year})]\n"
+                f"- LIMITATIONS: {limitations}\n"
+                f"- FUTURE WORK: {future_work}"
+            )
+            formatted_context.append(section_text)
 
-        # Combine the raw context with the Gap Synthesis prompt
-        final_prompt = GAP_SYNTHESIS_PROMPT_TEMPLATE.format(context_data = raw_context)
+        raw_context = "\n\n---\n\n".join(formatted_context)
+        final_prompt = GAP_SYNTHESIS_PROMPT_TEMPLATE.format(context_data=raw_context)
 
-        # Execution: Get the final analytical response from the AI
-        final_answer = self.call_llm(final_prompt)
-
-        return final_answer
+        return self.call_llm(final_prompt)
     
 
 
     def run_full_pipeline(self, user_query):
         """
-        The Main Orchestrator: Connects Expansion, Retrieval, and Synthesis.
+        The Main Orchestrator with Self-Correction
+        : Connects Expansion, Retrieval, and Synthesis.
         """
 
         print(f"\n=== Starting Full ScholarGraph Pipeline ===")
@@ -168,21 +187,52 @@ class ScholarGraphLogic:
         # In the future, this will call: retrieved_docs = Lukas.search(expanded_queries)
         print(f"\n[Step 2] Ready to pass {len(expanded_queries)} queries to Lukas's DB.")
 
-        # Current Mock Data simulating Lukas's DB result
+        # Current Mock Data simulating Lukas's DB result (Title, Year)
         mock_retrieved_data = [
-            "Paper A: Scalability issues in vector search latency for 1M+ documents.",
-            "Paper B: Latency is secondary to semantic drift in long-form embeddings."
+            {
+                "title": "Paper A",
+                "year": 2023,
+                "limitations": "Exponential latency increases when the document count exceeds 1 million.",
+                "future_work": "Research into decentralized sharding of vector indexes."
+            },
+            {
+                "title": "Paper B",
+                "year": 2025,
+                "limitations": "Semantic drift occurs in dense embeddings for documents longer than 10k tokens.",
+                "future_work": "Developing multi-resolution adaptive chunking for long-form retrieval."
+            }
         ]
 
         # 3. Synthesis Phase
-        final_analysis = self.gap_synthesis_workflow(mock_retrieved_data)
+        raw_analysis = self.gap_synthesis_workflow(mock_retrieved_data)
+
+        # 4. Self-Correction Step
+        print("\n[Step 4] Executing Self-Correction / Fact-Checking...")
+
+        verification_prompt = f"""
+        You are a Fact-Checking Auditor. Review the analysis below based ONLY on the [Context Data].
+
+        [Context Data]
+        {mock_retrieved_data}
+
+        [Analysis to Review]
+        {raw_analysis}
+
+        Tasks:
+        1. Accuracy: Remove any claims not directly supported by the context.
+        2. Citations: Ensure every point cites [Title (Year)].
+        3. Logic: Check if 'Synergy Discovery' uses components from both papers.
+
+        Output ONLY the finalized, verified report.
+        """
+        final_verified_report = self.call_llm(verification_prompt)
 
         print(f"\n=== Pipeline Execution Completed ===")
-        return final_analysis
+        return final_verified_report
 
 
 # -----------------------------------------
-# Execution Example
+# Main Execution
 # -----------------------------------------
 if __name__ == "__main__":
     engine = ScholarGraphLogic()

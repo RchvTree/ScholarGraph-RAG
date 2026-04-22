@@ -88,6 +88,15 @@ To resolve this, I developed a diagnostic script, 'check_models.py', to programm
 ### From Text to Structured Data
 To bridge the gap between the LLM's natural language output and the database's technical requirements, I implemented a robust **Data Parsing Layer**. This ensures that the intelligence logic provides structured inputs to the retrieval engine.
 
+### High-Fidelity Gap Synthesis
+- Structured Metadata Synthesis
+
+    : Processes dictionary-based objects (title, year, limitations, future_work) for chronically aware analysis.
+
+- Synergy Discovery
+
+    : Proposes novel research directions by combining fragmented "Future Work" ideas from different sources.
+
 ### Key Technical Implementation
 - **Output Sanitization**
 
@@ -129,3 +138,13 @@ I designed and implemented a unified controller, 'run_full_pipeline', to automat
 3. **Advanced Synthesis**
 
     : Orchestrates corss-paper reasoning to identify **Technical Contradictions** and **Research Silences** (unaddressed gaps) across multiple sources.
+
+## 🛡️ Reliability & Hallucination Mitigation
+To ensure academic rigor, the system employs a dual-layer defense:
+- Strict Grounding & Citations
+
+    : Prompts mandate that every claim must be backed by a specific source (e.g., [Title (Year)]). AI is instructed to output "information not available" rather than fabricating answers.
+
+- Self-Correction Auditor
+
+    : A secondary LLM pass acts as a "Fact-Checking Auditor", reviewing the initial report against the source context to remove unsupported claims.
