@@ -8,6 +8,7 @@ import json
 import os
 from dotenv import load_dotenv
 from google import genai
+import re
 
 # Load environment variables from .env file
 load_dotenv()
@@ -32,15 +33,22 @@ Example: ["query 1", "query 2", "query 3"]
 
 # Template for synthesizing research gaps from multiple paper sections
 GAP_SYNTHESIS_PROMPT_TEMPLATE = """
-You are a Research Analyst. Below are "Limitations" and "Future Work" sections from multiple papers.
-Context: {context_data}
+You are a Senior Research Strategist specialized in identifying "Research Silences" in academic literatue.
+Below are retrieved sections (Limitations/Future Work) from multiple research papers.
 
-Tasks:
-1. Compare the findings and identify common unaddressed variables.
-2. Highlight any contradictions between the papers.
-3. Propose a "Research Silence" (a gap) that current literature hasn't covered.
+[Context Data]
+{context_data}
 
-Output format: Structured bullet points.
+[Your Analysis Tasks]
+1. Consistency & Addressal: Analyze if Paper B addresses any specific limitations mentioned in Paper A.
+2. Technical Contradictions: Highlight any conflicting claims regarding methodology, performance, or experimental results between the papers.
+3. Synergy Discovery: Combine the "Future Work" suggestions from both papers to propose a multi-disciplinary research direction that neither paper suggested individually.
+4. Research Silence (The Gap): Identify one specific technical or theoretical "Silence"-a gap that is conspicuously missing or ignored by ALL provided papers.
+
+[Output Guidelines]
+- Use professional academic English.
+- Use structured bullet points with bold headers.
+- Be specific and technical; avoid generic summaries.
 """
 
 
@@ -100,16 +108,17 @@ class ScholarGraphLogic:
         # Sanitization & Parsing
         try:
             # 1. Sanitization: Remove potential markdown backticks
-            clean_json = raw_result.replace("```json", "").replace("```", "").strip()
-
-            # 2. Parsing: Convert String to real Python List
-            query_list = json.loads(clean_json)
-
-            if isinstance(query_list, list):
+            # -> [Fix] Use Regex to find the JSON list even if there is extra text
+            match = re.search(r'\[.*\]', raw_result, re.DOTALL)
+            if match:
+                clean_json = match.group(0)
+                # 2. Parsing: Convert String to real Python List
+                query_list = json.loads(clean_json)
                 print(f" -> Successfully parsed {len(query_list)} queries.")
                 return query_list # Return <class 'list'>
+
             else:
-                raise ValueError("Output is not a list format.")
+                raise ValueError("No JSON list found in response.")
             
         except Exception as e:
             print(f"[Warning] Parsing failed: {e}")
@@ -118,31 +127,58 @@ class ScholarGraphLogic:
 
 
     
-    def gap_synthesis_workflow(self, paper_ids):
+    def gap_synthesis_workflow(self, context_data_list):
         """
-        Step 2: Orchestrate cross-paper analysis by synthesizing limitations.
+        Step 3: Orchestrate cross-paper analysis by synthesizing research gaps.
+
+        Why 'context_data_list' instead of 'paper_ids'?
+        The identifiers (Who to find) are handled by the Retrieval layer (Lukas),
+        while this Reasoning layer focuses purely on the actual content (What to analyze).
+
         It aggregates data from Lukas and processes it through the reasoning engine.
         """
-        print(f"\n[Step 2] Fetching data for Paper IDs: {paper_ids}")
 
-        # Interface: Fetching mock data representing Lukas's retrieval result
-        # In the future, this will call Lukas's search function
-        mock_data = [
-            "Paper A: Small sample size and lack of diverse demographics.",
-            "Paper B: High computational cost and latency in real-time processing."
-        ]
+        # Updated to Step 3 and changed to reflect the actual data being processed
+        print(f"\n[Step 3] Synthesizing Research Gaps from {len(context_data_list)} retrieved sections...")
 
-        # Refinement: Aggregate text chunks into a single string for the LLM
-        raw_context = "\n".join(mock_data)
+        # Aggregate text chunks for the LLM
+        raw_context = "\n".join(context_data_list)
 
-        # Injection: Combine the raw context with the Gap Synthesis prompt
+        # Combine the raw context with the Gap Synthesis prompt
         final_prompt = GAP_SYNTHESIS_PROMPT_TEMPLATE.format(context_data = raw_context)
 
         # Execution: Get the final analytical response from the AI
         final_answer = self.call_llm(final_prompt)
 
         return final_answer
+    
 
+
+    def run_full_pipeline(self, user_query):
+        """
+        The Main Orchestrator: Connects Expansion, Retrieval, and Synthesis.
+        """
+
+        print(f"\n=== Starting Full ScholarGraph Pipeline ===")
+
+        # 1. Expansion Phase
+        expanded_queries = self.expand_query_workflow(user_query)
+
+        # 2. Retrieval Phase (Interface for Lukas Integration)
+        # In the future, this will call: retrieved_docs = Lukas.search(expanded_queries)
+        print(f"\n[Step 2] Ready to pass {len(expanded_queries)} queries to Lukas's DB.")
+
+        # Current Mock Data simulating Lukas's DB result
+        mock_retrieved_data = [
+            "Paper A: Scalability issues in vector search latency for 1M+ documents.",
+            "Paper B: Latency is secondary to semantic drift in long-form embeddings."
+        ]
+
+        # 3. Synthesis Phase
+        final_analysis = self.gap_synthesis_workflow(mock_retrieved_data)
+
+        print(f"\n=== Pipeline Execution Completed ===")
+        return final_analysis
 
 
 # -----------------------------------------
@@ -151,9 +187,7 @@ class ScholarGraphLogic:
 if __name__ == "__main__":
     engine = ScholarGraphLogic()
 
-    # Show Query Expansion
-    engine.expand_query_workflow("RAG system efficiency")
+    # Run the entire pipeline with a single entry point
+    final_report = engine.run_full_pipeline("RAG system efficiency")
 
-    # Show Gap Synthesis
-    result = engine.gap_synthesis_workflow(["Arxiv_2301", "Arxiv_2405"])
-    print(f"\n[Final Output]\n{result}")
+    print(f"\n[Final Analytical Report]\n{final_report}")

@@ -104,3 +104,28 @@ To bridge the gap between the LLM's natural language output and the database's t
 - **Strict Prompting**
 
     : Refined prompt templates to enforce **JSON-only** response, significantly improving the consistency of the data pipeline.
+
+### Troubleshooting Conversational Noise in LLM Outputs
+- **Challenge**
+
+    : LLMs often include conversational prefixes or suffixes in their responses, which breaks standard 'json.loads()'.
+
+- **Resolution**
+
+    : Implemented **Regex-based extraction** using the pattern 're.search(r'\[.*\]', raw_result, re.DOTALL)' to surgically isolate the JSON array from raw strings.
+
+## ⛓️ Full Orchestration Pipeline
+### The Full Orchestration Pipeline
+I designed and implemented a unified controller, 'run_full_pipeline', to automate the end-to-end reasoning flow from user input to final analysis:
+
+1. **Query Expansion**
+
+    : Transforms vague user queries into 3 precise technical search terms to maximize retrieval hit rates.
+
+2. **Retrieval Interface**
+
+    : Serves as a bridge for **Vector DB integration (Role B)**, passing expanded queries and receiving structured paper segments.
+
+3. **Advanced Synthesis**
+
+    : Orchestrates corss-paper reasoning to identify **Technical Contradictions** and **Research Silences** (unaddressed gaps) across multiple sources.
