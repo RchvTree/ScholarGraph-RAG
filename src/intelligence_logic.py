@@ -1,9 +1,15 @@
 # === Discussion ===
 # Lukas's function -> 'title', 'year', 'limitations', 'future work'
     # context_data -> Year(issued year), Citation Count => Metadata Enrichment
+    # List[Dict]
+        # Dict: title, year, limitations, future_work
+        # If there's no data, then return empty list []
 # Normal queries too
 # Context Window? (If we have many papers / too long context /... Should we process all at once or have a summarization process in between?)
-# if __name__ == "__main__" => input()? save file as .txt or .md etc?
+# if __name__ == "__main__"
+    # => infinite loop for test? (while True)
+    # => save file as .txt or .md?
+    # => processing time? how much time does it take, per step
 # Hallucination prevention
 
 import json
